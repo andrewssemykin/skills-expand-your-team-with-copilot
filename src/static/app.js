@@ -472,6 +472,56 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
+  // Function to share an activity
+  function shareActivity(name, details, platform) {
+    const formattedSchedule = formatSchedule(details);
+    const activityUrl = `${window.location.origin}${window.location.pathname}`;
+    const shareText = `Check out ${name} at Mergington High School!\n\n${details.description}\n\nSchedule: ${formattedSchedule}`;
+    const shareTitle = `${name} - Mergington High School`;
+
+    // Check if Web Share API is available (for mobile and some modern browsers)
+    if (platform === 'native' && navigator.share) {
+      navigator.share({
+        title: shareTitle,
+        text: shareText,
+        url: activityUrl
+      }).catch((error) => {
+        if (error.name !== 'AbortError') {
+          console.error('Error sharing:', error);
+        }
+      });
+      return;
+    }
+
+    // Platform-specific sharing
+    let shareUrl = '';
+    switch (platform) {
+      case 'facebook':
+        shareUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(activityUrl)}&quote=${encodeURIComponent(shareText)}`;
+        break;
+      case 'twitter':
+        shareUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}&url=${encodeURIComponent(activityUrl)}`;
+        break;
+      case 'email':
+        shareUrl = `mailto:?subject=${encodeURIComponent(shareTitle)}&body=${encodeURIComponent(shareText + '\n\n' + activityUrl)}`;
+        break;
+      case 'copy':
+        // Copy link to clipboard
+        const textToCopy = `${shareText}\n\n${activityUrl}`;
+        navigator.clipboard.writeText(textToCopy).then(() => {
+          showMessage('Link copied to clipboard!', 'success');
+        }).catch((error) => {
+          console.error('Error copying to clipboard:', error);
+          showMessage('Failed to copy link', 'error');
+        });
+        return;
+    }
+
+    if (shareUrl) {
+      window.open(shareUrl, '_blank', 'width=600,height=400');
+    }
+  }
+
   // Function to render a single activity card
   function renderActivityCard(name, details) {
     const activityCard = document.createElement("div");
@@ -552,6 +602,25 @@ document.addEventListener("DOMContentLoaded", () => {
             .join("")}
         </ul>
       </div>
+      <div class="social-share-buttons">
+        <span class="share-label">Share:</span>
+        <button class="share-button share-facebook tooltip" data-activity="${name}" data-platform="facebook" title="Share on Facebook">
+          <span class="share-icon">📘</span>
+          <span class="tooltip-text">Share on Facebook</span>
+        </button>
+        <button class="share-button share-twitter tooltip" data-activity="${name}" data-platform="twitter" title="Share on Twitter">
+          <span class="share-icon">🐦</span>
+          <span class="tooltip-text">Share on Twitter</span>
+        </button>
+        <button class="share-button share-email tooltip" data-activity="${name}" data-platform="email" title="Share via Email">
+          <span class="share-icon">📧</span>
+          <span class="tooltip-text">Share via Email</span>
+        </button>
+        <button class="share-button share-copy tooltip" data-activity="${name}" data-platform="copy" title="Copy Link">
+          <span class="share-icon">🔗</span>
+          <span class="tooltip-text">Copy Link</span>
+        </button>
+      </div>
       <div class="activity-card-actions">
         ${
           currentUser
@@ -575,6 +644,17 @@ document.addEventListener("DOMContentLoaded", () => {
     const deleteButtons = activityCard.querySelectorAll(".delete-participant");
     deleteButtons.forEach((button) => {
       button.addEventListener("click", handleUnregister);
+    });
+
+    // Add click handlers for share buttons
+    const shareButtons = activityCard.querySelectorAll(".share-button");
+    shareButtons.forEach((button) => {
+      button.addEventListener("click", (event) => {
+        event.preventDefault();
+        const platform = button.dataset.platform;
+        const activityName = button.dataset.activity;
+        shareActivity(activityName, details, platform);
+      });
     });
 
     // Add click handler for register button (only when authenticated)
